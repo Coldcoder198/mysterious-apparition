@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#007bff">
+    <title>St Marrow</title></title>
+    <style>
+        *{
+            font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        dialog {
+            z-index: 9999;
+            border: none;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            max-width: 400px;
+        }
+
+        dialog::backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+        }
+
+        button {
+            border-radius: 5px;
+            background-color:grey;
+            color:aliceblue;
+        }
+
+        button#install{display: none;background-color: aquamarine;}
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        iframe {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            border: none;
+        }
+
+        #floatingMenuBtn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9998; /* High z-index to sit on top of the iframe but below the opened dialog */
+            
+            /* Styling */
+            width: 56px;
+            height: 56px;
+            border: none;
+            border-radius: 50%;
+            background-color: #0076ff;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            
+            /* Layout centering the icon/text */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        /* Hover and Click Interactions */
+        #floatingMenuBtn:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+
+        #floatingMenuBtn:active {
+            transform: scale(0.95);
+        }
+
+
+    </style>
+</head>
+<body>
+    <iframe src="https://st-marrow1.pages.dev/"></iframe>
+    <dialog id="myPopup">
+        <h2>Welcome!</h2>
+        <p>Hello There! (<a href="https://foundry-zero.pages.dev/">here</a>)</p>
+        <button id="install">Install as app</button>
+        
+        <button id="closePopup">Close</button>
+    </dialog>
+
+    <button id="floatingMenuBtn" aria-label="Open Menu">⚙️</button>
+
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('Service Worker registered successfully.', reg.scope))
+                .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
+        const closeBtn = document.getElementById("closePopup");
+        const popup = document.getElementById("myPopup");
+        const floatingBtn = document.getElementById("floatingMenuBtn");
+
+        function openPopup() {popup.showModal();}
+
+        function closePopup() {popup.close();}
+
+        closeBtn.addEventListener("click", closePopup);
+
+        floatingBtn.addEventListener("click", openPopup);
+
+
+        window.addEventListener("message", (e) => {
+            // Security check: Only accept messages from your verified iframe domain
+            if (e.origin !== "https://github.io") return;
+
+            // If the iframe says the user pressed Escape, open the popup
+            if (e.data && e.data.type === "OPEN_POPUP") {
+                if (!popup.open) {
+                openPopup();
+                }
+            }
+        });
+        
+        popup.addEventListener("click", (e) => {
+            const rect = popup.getBoundingClientRect();
+            
+            const clickedOutside = 
+                e.clientX < rect.left ||
+                e.clientX > rect.right ||
+                e.clientY < rect.top ||
+                e.clientY > rect.bottom;
+
+            if (clickedOutside) {
+                closePopup();
+            }
+        });
+
+
+        window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            if (popup.open) {e.preventDefault(); 
+            } else {openPopup();}
+        }
+        });
+        let deferredPrompt;
+
+        let installBtn = document.getElementById("install");
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = "inline-block";
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to install prompt: ${outcome}`);
+                deferredPrompt = null;
+                installBtn.style.display = "none";
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            console.log('App was successfully installed into the system.');
+            installBtn.style.display = 'none';
+        });
+
+    </script>
+</body>
+</html>
